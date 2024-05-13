@@ -56,6 +56,7 @@ const (
 	ConfigServiceEndpointID              = "config"
 	DevOpsGuruEndpointID                 = "devops-guru"
 	ECREndpointID                        = "api.ecr"
+	EFSEndpointID                        = "elasticfilesystem"
 	EKSEndpointID                        = "eks"
 	EMREndpointID                        = "elasticmapreduce"
 	EventsEndpointID                     = "events"

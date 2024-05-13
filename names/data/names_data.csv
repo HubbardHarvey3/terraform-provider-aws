@@ -137,7 +137,7 @@ ec2-instance-connect,ec2instanceconnect,ec2instanceconnect,ec2instanceconnect,,e
 ecr,ecr,ecr,ecr,,ecr,,,ECR,ECR,,,2,,aws_ecr_,,ecr_,ECR (Elastic Container Registry),Amazon,,,,,,,ECR,DescribeRepositories,,
 ecr-public,ecrpublic,ecrpublic,ecrpublic,,ecrpublic,,,ECRPublic,ECRPublic,,,2,,aws_ecrpublic_,,ecrpublic_,ECR Public,Amazon,,,,,,,ECR PUBLIC,DescribeRepositories,,
 ecs,ecs,ecs,ecs,,ecs,,,ECS,ECS,,1,2,,aws_ecs_,,ecs_,ECS (Elastic Container),Amazon,,,,,,,ECS,ListClusters,,
-efs,efs,efs,efs,,efs,,,EFS,EFS,,1,,,aws_efs_,,efs_,EFS (Elastic File System),Amazon,,,,,,,EFS,DescribeFileSystems,,
+efs,efs,efs,efs,,efs,,,EFS,EFS,,,2,,aws_efs_,,efs_,EFS (Elastic File System),Amazon,,,,,,,EFS,DescribeFileSystems,,
 eks,eks,eks,eks,,eks,,,EKS,EKS,,,2,,aws_eks_,,eks_,EKS (Elastic Kubernetes),Amazon,,,,,,,EKS,ListClusters,,
 elasticbeanstalk,elasticbeanstalk,elasticbeanstalk,elasticbeanstalk,,elasticbeanstalk,,beanstalk,ElasticBeanstalk,ElasticBeanstalk,,,2,aws_elastic_beanstalk_,aws_elasticbeanstalk_,,elastic_beanstalk_,Elastic Beanstalk,AWS,,,,,,,Elastic Beanstalk,ListAvailableSolutionStacks,,
 elastic-inference,elasticinference,elasticinference,elasticinference,,elasticinference,,,ElasticInference,ElasticInference,,1,,,aws_elasticinference_,,elasticinference_,Elastic Inference,Amazon,,x,,,,,Elastic Inference,,,
