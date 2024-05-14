@@ -7,7 +7,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/efs"
+	"github.com/aws/aws-sdk-go-v2/service/efs"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 )
 
@@ -21,7 +21,7 @@ const (
 )
 
 // waitAccessPointCreated waits for an Operation to return Success
-func waitAccessPointCreated(ctx context.Context, conn *efs.EFS, accessPointId string) (*efs.AccessPointDescription, error) {
+func waitAccessPointCreated(ctx context.Context, conn *efs.Client, accessPointId string) (*efs.AccessPointDescription, error) {
 	stateConf := &retry.StateChangeConf{
 		Pending: []string{efs.LifeCycleStateCreating},
 		Target:  []string{efs.LifeCycleStateAvailable},
@@ -39,7 +39,7 @@ func waitAccessPointCreated(ctx context.Context, conn *efs.EFS, accessPointId st
 }
 
 // waitAccessPointDeleted waits for an Access Point to return Deleted
-func waitAccessPointDeleted(ctx context.Context, conn *efs.EFS, accessPointId string) (*efs.AccessPointDescription, error) {
+func waitAccessPointDeleted(ctx context.Context, conn *efs.Client, accessPointId string) (*efs.AccessPointDescription, error) {
 	stateConf := &retry.StateChangeConf{
 		Pending: []string{efs.LifeCycleStateAvailable, efs.LifeCycleStateDeleting, efs.LifeCycleStateDeleted},
 		Target:  []string{},
@@ -56,7 +56,7 @@ func waitAccessPointDeleted(ctx context.Context, conn *efs.EFS, accessPointId st
 	return nil, err
 }
 
-func waitBackupPolicyDisabled(ctx context.Context, conn *efs.EFS, id string) (*efs.BackupPolicy, error) {
+func waitBackupPolicyDisabled(ctx context.Context, conn *efs.Client, id string) (*efs.BackupPolicy, error) {
 	stateConf := &retry.StateChangeConf{
 		Pending: []string{efs.StatusDisabling},
 		Target:  []string{efs.StatusDisabled},
@@ -73,7 +73,7 @@ func waitBackupPolicyDisabled(ctx context.Context, conn *efs.EFS, id string) (*e
 	return nil, err
 }
 
-func waitBackupPolicyEnabled(ctx context.Context, conn *efs.EFS, id string) (*efs.BackupPolicy, error) {
+func waitBackupPolicyEnabled(ctx context.Context, conn *efs.Client, id string) (*efs.BackupPolicy, error) {
 	stateConf := &retry.StateChangeConf{
 		Pending: []string{efs.StatusEnabling},
 		Target:  []string{efs.StatusEnabled},

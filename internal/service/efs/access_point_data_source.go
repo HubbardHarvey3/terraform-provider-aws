@@ -7,9 +7,9 @@ import (
 	"context"
 	"log"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/arn"
-	"github.com/aws/aws-sdk-go/service/efs"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
+	"github.com/aws/aws-sdk-go-v2/service/efs"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-provider-aws/internal/conns"
@@ -108,7 +108,7 @@ func dataSourceAccessPointRead(ctx context.Context, d *schema.ResourceData, meta
 	conn := meta.(*conns.AWSClient).EFSConn(ctx)
 	ignoreTagsConfig := meta.(*conns.AWSClient).IgnoreTagsConfig
 
-	resp, err := conn.DescribeAccessPointsWithContext(ctx, &efs.DescribeAccessPointsInput{
+	resp, err := conn.DescribeAccessPoints(ctx, &efs.DescribeAccessPointsInput{
 		AccessPointId: aws.String(d.Get("access_point_id").(string)),
 	})
 	if err != nil {
@@ -122,9 +122,9 @@ func dataSourceAccessPointRead(ctx context.Context, d *schema.ResourceData, meta
 
 	log.Printf("[DEBUG] Found EFS access point: %#v", ap)
 
-	d.SetId(aws.StringValue(ap.AccessPointId))
+	d.SetId(aws.ToString(ap.AccessPointId))
 	d.Set(names.AttrARN, ap.AccessPointArn)
-	fsID := aws.StringValue(ap.FileSystemId)
+	fsID := aws.ToString(ap.FileSystemId)
 	fsARN := arn.ARN{
 		AccountID: meta.(*conns.AWSClient).AccountID,
 		Partition: meta.(*conns.AWSClient).Partition,

@@ -7,9 +7,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/arn"
-	"github.com/aws/aws-sdk-go/service/efs"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
+	"github.com/aws/aws-sdk-go-v2/service/efs"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-provider-aws/internal/conns"
@@ -106,8 +106,8 @@ func dataSourceMountTargetRead(ctx context.Context, d *schema.ResourceData, meta
 		return sdkdiag.AppendErrorf(diags, "reading EFS Mount Target: %s", err)
 	}
 
-	d.SetId(aws.StringValue(mt.MountTargetId))
-	fsID := aws.StringValue(mt.FileSystemId)
+	d.SetId(aws.ToString(mt.MountTargetId))
+	fsID := aws.ToString(mt.FileSystemId)
 	fsARN := arn.ARN{
 		AccountID: meta.(*conns.AWSClient).AccountID,
 		Partition: meta.(*conns.AWSClient).Partition,
@@ -121,13 +121,13 @@ func dataSourceMountTargetRead(ctx context.Context, d *schema.ResourceData, meta
 	d.Set("file_system_arn", fsARN)
 	d.Set(names.AttrFileSystemID, fsID)
 	d.Set(names.AttrIPAddress, mt.IpAddress)
-	d.Set("mount_target_dns_name", meta.(*conns.AWSClient).RegionalHostname(ctx, fmt.Sprintf("%s.%s.efs", aws.StringValue(mt.AvailabilityZoneName), aws.StringValue(mt.FileSystemId))))
+	d.Set("mount_target_dns_name", meta.(*conns.AWSClient).RegionalHostname(ctx, fmt.Sprintf("%s.%s.efs", aws.ToString(mt.AvailabilityZoneName), aws.ToString(mt.FileSystemId))))
 	d.Set("mount_target_id", mt.MountTargetId)
 	d.Set(names.AttrNetworkInterfaceID, mt.NetworkInterfaceId)
 	d.Set(names.AttrOwnerID, mt.OwnerId)
 	d.Set(names.AttrSubnetID, mt.SubnetId)
 
-	output, err := conn.DescribeMountTargetSecurityGroupsWithContext(ctx, &efs.DescribeMountTargetSecurityGroupsInput{
+	output, err := conn.DescribeMountTargetSecurityGroups(ctx, &efs.DescribeMountTargetSecurityGroupsInput{
 		MountTargetId: aws.String(d.Id()),
 	})
 
@@ -135,7 +135,7 @@ func dataSourceMountTargetRead(ctx context.Context, d *schema.ResourceData, meta
 		return sdkdiag.AppendErrorf(diags, "reading EFS Mount Target (%s) security groups: %s", d.Id(), err)
 	}
 
-	d.Set(names.AttrSecurityGroups, aws.StringValueSlice(output.SecurityGroups))
+	d.Set(names.AttrSecurityGroups, aws.ToStringSlice(output.SecurityGroups))
 
 	return diags
 }

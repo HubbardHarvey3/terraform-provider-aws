@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/efs"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/efs"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-provider-aws/internal/sweep"
@@ -47,7 +47,7 @@ func sweepAccessPoints(region string) error {
 	var sweeperErrs *multierror.Error
 	sweepResources := make([]sweep.Sweepable, 0)
 
-	err = conn.DescribeFileSystemsPagesWithContext(ctx, input, func(page *efs.DescribeFileSystemsOutput, lastPage bool) bool {
+	err = conn.DescribeFileSystemsPages(ctx, input, func(page *efs.DescribeFileSystemsOutput, lastPage bool) bool {
 		if page == nil {
 			return !lastPage
 		}
@@ -57,7 +57,7 @@ func sweepAccessPoints(region string) error {
 				FileSystemId: v.FileSystemId,
 			}
 
-			err := conn.DescribeAccessPointsPagesWithContext(ctx, input, func(page *efs.DescribeAccessPointsOutput, lastPage bool) bool {
+			err := conn.DescribeAccessPointsPages(ctx, input, func(page *efs.DescribeAccessPointsOutput, lastPage bool) bool {
 				if page == nil {
 					return !lastPage
 				}
@@ -65,7 +65,7 @@ func sweepAccessPoints(region string) error {
 				for _, v := range page.AccessPoints {
 					r := ResourceAccessPoint()
 					d := r.Data(nil)
-					d.SetId(aws.StringValue(v.AccessPointId))
+					d.SetId(aws.ToString(v.AccessPointId))
 
 					sweepResources = append(sweepResources, sweep.NewSweepResource(r, d, client))
 				}
@@ -113,7 +113,7 @@ func sweepFileSystems(region string) error {
 	input := &efs.DescribeFileSystemsInput{}
 	sweepResources := make([]sweep.Sweepable, 0)
 
-	err = conn.DescribeFileSystemsPagesWithContext(ctx, input, func(page *efs.DescribeFileSystemsOutput, lastPage bool) bool {
+	err = conn.DescribeFileSystemsPages(ctx, input, func(page *efs.DescribeFileSystemsOutput, lastPage bool) bool {
 		if page == nil {
 			return !lastPage
 		}
@@ -121,7 +121,7 @@ func sweepFileSystems(region string) error {
 		for _, v := range page.FileSystems {
 			r := ResourceFileSystem()
 			d := r.Data(nil)
-			d.SetId(aws.StringValue(v.FileSystemId))
+			d.SetId(aws.ToString(v.FileSystemId))
 
 			sweepResources = append(sweepResources, sweep.NewSweepResource(r, d, client))
 		}
@@ -158,7 +158,7 @@ func sweepMountTargets(region string) error {
 	var sweeperErrs *multierror.Error
 	sweepResources := make([]sweep.Sweepable, 0)
 
-	err = conn.DescribeFileSystemsPagesWithContext(ctx, input, func(page *efs.DescribeFileSystemsOutput, lastPage bool) bool {
+	err = conn.DescribeFileSystemsPages(ctx, input, func(page *efs.DescribeFileSystemsOutput, lastPage bool) bool {
 		if page == nil {
 			return !lastPage
 		}
@@ -176,7 +176,7 @@ func sweepMountTargets(region string) error {
 				for _, v := range page.MountTargets {
 					r := ResourceMountTarget()
 					d := r.Data(nil)
-					d.SetId(aws.StringValue(v.MountTargetId))
+					d.SetId(aws.ToString(v.MountTargetId))
 
 					sweepResources = append(sweepResources, sweep.NewSweepResource(r, d, client))
 				}

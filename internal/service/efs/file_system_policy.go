@@ -7,8 +7,8 @@ import (
 	"context"
 	"log"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/efs"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/efs"
 	"github.com/hashicorp/aws-sdk-go-base/v2/awsv1shim/v2/tfawserr"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -76,7 +76,7 @@ func resourceFileSystemPolicyPut(ctx context.Context, d *schema.ResourceData, me
 	}
 
 	_, err = tfresource.RetryWhenAWSErrMessageContains(ctx, propagationTimeout, func() (interface{}, error) {
-		return conn.PutFileSystemPolicyWithContext(ctx, input)
+		return conn.PutFileSystemPolicy(ctx, input)
 	}, efs.ErrCodeInvalidPolicyException, "Policy contains invalid Principal block")
 
 	if err != nil {
@@ -108,7 +108,7 @@ func resourceFileSystemPolicyRead(ctx context.Context, d *schema.ResourceData, m
 
 	d.Set(names.AttrFileSystemID, output.FileSystemId)
 
-	policyToSet, err := verify.SecondJSONUnlessEquivalent(d.Get(names.AttrPolicy).(string), aws.StringValue(output.Policy))
+	policyToSet, err := verify.SecondJSONUnlessEquivalent(d.Get(names.AttrPolicy).(string), aws.ToString(output.Policy))
 	if err != nil {
 		return sdkdiag.AppendFromErr(diags, err)
 	}
@@ -128,7 +128,7 @@ func resourceFileSystemPolicyDelete(ctx context.Context, d *schema.ResourceData,
 	conn := meta.(*conns.AWSClient).EFSConn(ctx)
 
 	log.Printf("[DEBUG] Deleting EFS File System Policy: %s", d.Id())
-	_, err := conn.DeleteFileSystemPolicyWithContext(ctx, &efs.DeleteFileSystemPolicyInput{
+	_, err := conn.DeleteFileSystemPolicy(ctx, &efs.DeleteFileSystemPolicyInput{
 		FileSystemId: aws.String(d.Id()),
 	})
 
