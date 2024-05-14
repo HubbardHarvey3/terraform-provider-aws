@@ -6,8 +6,8 @@ package efs
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/efs"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/efs"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -146,7 +146,7 @@ func dataSourceFileSystemRead(ctx context.Context, d *schema.ResourceData, meta 
 		return sdkdiag.AppendFromErr(diags, tfresource.SingularDataSourceFindError("EFS file system", err))
 	}
 
-	fsID := aws.StringValue(fs.FileSystemId)
+	fsID := aws.ToString(fs.FileSystemId)
 	d.SetId(fsID)
 	d.Set(names.AttrARN, fs.FileSystemArn)
 	d.Set("availability_zone_id", fs.AvailabilityZoneId)
@@ -171,12 +171,12 @@ func dataSourceFileSystemRead(ctx context.Context, d *schema.ResourceData, meta 
 		return sdkdiag.AppendErrorf(diags, "setting tags: %s", err)
 	}
 
-	res, err := conn.DescribeLifecycleConfigurationWithContext(ctx, &efs.DescribeLifecycleConfigurationInput{
+	res, err := conn.DescribeLifecycleConfiguration(ctx, &efs.DescribeLifecycleConfigurationInput{
 		FileSystemId: fs.FileSystemId,
 	})
 	if err != nil {
 		return sdkdiag.AppendErrorf(diags, "describing lifecycle configuration for EFS file system (%s): %s",
-			aws.StringValue(fs.FileSystemId), err)
+			aws.ToString(fs.FileSystemId), err)
 	}
 
 	if err := d.Set("lifecycle_policy", flattenFileSystemLifecyclePolicies(res.LifecyclePolicies)); err != nil {

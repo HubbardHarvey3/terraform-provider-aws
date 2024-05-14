@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/YakDriver/regexache"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/efs"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/efs"
 	"github.com/hashicorp/aws-sdk-go-base/v2/awsv1shim/v2/tfawserr"
 	sdkacctest "github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
@@ -259,7 +259,7 @@ func testAccCheckAccessPointDestroy(ctx context.Context) resource.TestCheckFunc 
 				continue
 			}
 
-			resp, err := conn.DescribeAccessPointsWithContext(ctx, &efs.DescribeAccessPointsInput{
+			resp, err := conn.DescribeAccessPoints(ctx, &efs.DescribeAccessPointsInput{
 				AccessPointId: aws.String(rs.Primary.ID),
 			})
 			if err != nil {
@@ -294,14 +294,14 @@ func testAccCheckAccessPointExists(ctx context.Context, resourceID string, mount
 		}
 
 		conn := acctest.Provider.Meta().(*conns.AWSClient).EFSConn(ctx)
-		mt, err := conn.DescribeAccessPointsWithContext(ctx, &efs.DescribeAccessPointsInput{
+		mt, err := conn.DescribeAccessPoints(ctx, &efs.DescribeAccessPointsInput{
 			AccessPointId: aws.String(fs.Primary.ID),
 		})
 		if err != nil {
 			return err
 		}
 
-		apId := aws.StringValue(mt.AccessPoints[0].AccessPointId)
+		apId := aws.ToString(mt.AccessPoints[0].AccessPointId)
 		if apId != fs.Primary.ID {
 			return fmt.Errorf("access point ID mismatch: %q != %q", apId, fs.Primary.ID)
 		}
