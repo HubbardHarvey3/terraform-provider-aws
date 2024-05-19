@@ -15,11 +15,11 @@ import (
 	aws_sdkv2 "github.com/aws/aws-sdk-go-v2/aws"
 	config_sdkv2 "github.com/aws/aws-sdk-go-v2/config"
 	apigatewayv2_types "github.com/aws/aws-sdk-go-v2/service/apigatewayv2/types"
+	efs_sdkv2 "github.com/aws/aws-sdk-go-v2/service/efs"
 	s3_sdkv2 "github.com/aws/aws-sdk-go-v2/service/s3"
 	aws_sdkv1 "github.com/aws/aws-sdk-go/aws"
 	session_sdkv1 "github.com/aws/aws-sdk-go/aws/session"
 	directoryservice_sdkv1 "github.com/aws/aws-sdk-go/service/directoryservice"
-	efs_sdkv1 "github.com/aws/aws-sdk-go/service/efs"
 	opsworks_sdkv1 "github.com/aws/aws-sdk-go/service/opsworks"
 	rds_sdkv1 "github.com/aws/aws-sdk-go/service/rds"
 	baselogging "github.com/hashicorp/aws-sdk-go-base/v2/logging"
@@ -76,11 +76,16 @@ func (c *AWSClient) DSConnForRegion(ctx context.Context, region string) *directo
 // EFSConnForRegion returns an AWS SDK For Go v1 EFS API client for the specified AWS Region.
 // If the specified region is not the default a new "simple" client is created.
 // This new client does not use any configured endpoint override.
-func (c *AWSClient) EFSConnForRegion(ctx context.Context, region string) *efs_sdkv1.EFS {
+func (c *AWSClient) EFSConnForRegion(ctx context.Context, region string) *efs_sdkv2.Client {
 	if region == c.Region {
-		return c.EFSConn(ctx)
+		return c.EFSClient(ctx)
 	}
-	return efs_sdkv1.New(c.session, aws_sdkv1.NewConfig().WithRegion(region))
+	cfg, err := config_sdkv2.LoadDefaultConfig(ctx, config_sdkv2.WithRegion(region))
+	if err != nil {
+		panic(err)
+	}
+	// Create a new EFS client from the loaded configuration
+	return efs_sdkv2.NewFromConfig(cfg)
 }
 
 // OpsWorksConnForRegion returns an AWS SDK For Go v1 OpsWorks API client for the specified AWS Region.

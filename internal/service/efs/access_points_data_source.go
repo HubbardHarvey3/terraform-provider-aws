@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/efs"
+	awstypes "github.com/aws/aws-sdk-go-v2/service/efs/types"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -43,7 +44,7 @@ func DataSourceAccessPoints() *schema.Resource {
 
 func dataSourceAccessPointsRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
-	conn := meta.(*conns.AWSClient).EFSConn(ctx)
+	conn := meta.(*conns.AWSClient).EFSClient(ctx)
 
 	fileSystemID := d.Get(names.AttrFileSystemID).(string)
 	input := &efs.DescribeAccessPointsInput{
@@ -70,25 +71,20 @@ func dataSourceAccessPointsRead(ctx context.Context, d *schema.ResourceData, met
 	return diags
 }
 
-func findAccessPointDescriptions(ctx context.Context, conn *efs.Client, input *efs.DescribeAccessPointsInput) ([]*efs.AccessPointDescription, error) {
-	var output []*efs.AccessPointDescription
+func findAccessPointDescriptions(ctx context.Context, conn *efs.Client, input *efs.DescribeAccessPointsInput) ([]*awstypes.AccessPointDescription, error) {
+	var output []*awstypes.AccessPointDescription
 
-	err := conn.DescribeAccessPointsPages(ctx, input, func(page *efs.DescribeAccessPointsOutput, lastPage bool) bool {
-		if page == nil {
-			return !lastPage
+	paginator := efs.NewDescribeAccessPointsPaginator(conn, input)
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, err
 		}
 
-		for _, v := range page.AccessPoints {
-			if v != nil {
-				output = append(output, v)
-			}
+		for _, ap := range page.AccessPoints {
+			output = append(output, &ap)
 		}
-
-		return !lastPage
-	})
-
-	if err != nil {
-		return nil, err
 	}
 
 	return output, nil

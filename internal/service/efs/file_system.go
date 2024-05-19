@@ -11,6 +11,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/efs"
+	awstypes "github.com/aws/aws-sdk-go-v2/service/efs/types"
 	"github.com/hashicorp/aws-sdk-go-base/v2/awsv1shim/v2/tfawserr"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
@@ -90,12 +91,12 @@ func ResourceFileSystem() *schema.Resource {
 						"transition_to_archive": {
 							Type:         schema.TypeString,
 							Optional:     true,
-							ValidateFunc: validation.StringInSlice(efs.TransitionToArchiveRules_Values(), false),
+							ValidateFunc: validation.StringInSlice(awstypes.TransitionToArchiveRules.Values(), false),
 						},
 						"transition_to_ia": {
 							Type:         schema.TypeString,
 							Optional:     true,
-							ValidateFunc: validation.StringInSlice(efs.TransitionToIARules_Values(), false),
+							ValidateFunc: validation.StringInSlice(awstypes.TransitionToIARules_Values(), false),
 						},
 						"transition_to_primary_storage_class": {
 							Type:         schema.TypeString,
