@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/hashicorp/terraform-provider-aws/internal/conns"
+	"github.com/hashicorp/terraform-provider-aws/internal/enum"
 	"github.com/hashicorp/terraform-provider-aws/internal/errs/sdkdiag"
 	tfslices "github.com/hashicorp/terraform-provider-aws/internal/slices"
 	tftags "github.com/hashicorp/terraform-provider-aws/internal/tags"
@@ -89,19 +90,19 @@ func ResourceFileSystem() *schema.Resource {
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"transition_to_archive": {
-							Type:         schema.TypeString,
-							Optional:     true,
-							ValidateFunc: validation.StringInSlice(awstypes.TransitionToArchiveRules.Values(), false),
+							Type:             schema.TypeString,
+							Optional:         true,
+							ValidateDiagFunc: enum.Validate[awstypes.TransitionToArchiveRules](),
 						},
 						"transition_to_ia": {
-							Type:         schema.TypeString,
-							Optional:     true,
-							ValidateFunc: validation.StringInSlice(awstypes.TransitionToIARules_Values(), false),
+							Type:             schema.TypeString,
+							Optional:         true,
+							ValidateDiagFunc: enum.Validate[awstypes.TransitionToIARules](),
 						},
 						"transition_to_primary_storage_class": {
-							Type:         schema.TypeString,
-							Optional:     true,
-							ValidateFunc: validation.StringInSlice(efs.TransitionToPrimaryStorageClassRules_Values(), false),
+							Type:             schema.TypeString,
+							Optional:         true,
+							ValidateDiagFunc: enum.Validate[awstypes.TransitionToPrimaryStorageClassRules](),
 						},
 					},
 				},
@@ -119,11 +120,11 @@ func ResourceFileSystem() *schema.Resource {
 				Computed: true,
 			},
 			"performance_mode": {
-				Type:         schema.TypeString,
-				Optional:     true,
-				Computed:     true,
-				ForceNew:     true,
-				ValidateFunc: validation.StringInSlice(efs.PerformanceMode_Values(), false),
+				Type:             schema.TypeString,
+				Optional:         true,
+				Computed:         true,
+				ForceNew:         true,
+				ValidateDiagFunc: enum.Validate[awstypes.PerformanceMode](),
 			},
 			"protection": {
 				Type:     schema.TypeList,
@@ -133,13 +134,10 @@ func ResourceFileSystem() *schema.Resource {
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"replication_overwrite": {
-							Type:     schema.TypeString,
-							Optional: true,
-							Computed: true,
-							ValidateFunc: validation.StringInSlice([]string{
-								efs.ReplicationOverwriteProtectionEnabled,
-								efs.ReplicationOverwriteProtectionDisabled,
-							}, false),
+							Type:             schema.TypeString,
+							Optional:         true,
+							Computed:         true,
+							ValidateDiagFunc: enum.Validate[awstypes.ReplicationOverwriteProtection](),
 						},
 					},
 				},
@@ -171,10 +169,10 @@ func ResourceFileSystem() *schema.Resource {
 			names.AttrTags:    tftags.TagsSchema(),
 			names.AttrTagsAll: tftags.TagsSchemaComputed(),
 			"throughput_mode": {
-				Type:         schema.TypeString,
-				Optional:     true,
-				Default:      efs.ThroughputModeBursting,
-				ValidateFunc: validation.StringInSlice(efs.ThroughputMode_Values(), false),
+				Type:             schema.TypeString,
+				Optional:         true,
+				Default:          awstypes.ThroughputModeBursting,
+				ValidateDiagFunc: enum.Validate[awstypes.ThroughputMode](),
 			},
 		},
 	}
@@ -183,7 +181,7 @@ func ResourceFileSystem() *schema.Resource {
 func resourceFileSystemCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
 
-	conn := meta.(*conns.AWSClient).EFSConn(ctx)
+	conn := meta.(*conns.AWSClient).EFSClient(ctx)
 
 	var creationToken string
 	if v, ok := d.GetOk("creation_token"); ok {
@@ -191,11 +189,11 @@ func resourceFileSystemCreate(ctx context.Context, d *schema.ResourceData, meta 
 	} else {
 		creationToken = id.UniqueId()
 	}
-	throughputMode := d.Get("throughput_mode").(string)
+	throughputMode := d.Get("throughput_mode").(awstypes.ThroughputMode)
 	input := &efs.CreateFileSystemInput{
 		CreationToken:  aws.String(creationToken),
 		Tags:           getTagsIn(ctx),
-		ThroughputMode: aws.String(throughputMode),
+		ThroughputMode: throughputMode,
 	}
 
 	if v, ok := d.GetOk("availability_zone_name"); ok {
@@ -203,7 +201,7 @@ func resourceFileSystemCreate(ctx context.Context, d *schema.ResourceData, meta 
 	}
 
 	if v, ok := d.GetOk("performance_mode"); ok {
-		input.PerformanceMode = aws.String(v.(string))
+		input.PerformanceMode = awstypes.PerformanceMode(v.(string))
 	}
 
 	if throughputMode == efs.ThroughputModeProvisioned {
@@ -266,7 +264,7 @@ func resourceFileSystemCreate(ctx context.Context, d *schema.ResourceData, meta 
 func resourceFileSystemRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
 
-	conn := meta.(*conns.AWSClient).EFSConn(ctx)
+	conn := meta.(*conns.AWSClient).EFSClient(ctx)
 
 	fs, err := FindFileSystemByID(ctx, conn, d.Id())
 
@@ -320,7 +318,7 @@ func resourceFileSystemRead(ctx context.Context, d *schema.ResourceData, meta in
 func resourceFileSystemUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
 
-	conn := meta.(*conns.AWSClient).EFSConn(ctx)
+	conn := meta.(*conns.AWSClient).EFSClient(ctx)
 
 	if d.HasChanges("provisioned_throughput_in_mibps", "throughput_mode") {
 		throughputMode := d.Get("throughput_mode").(string)
@@ -382,7 +380,7 @@ func resourceFileSystemUpdate(ctx context.Context, d *schema.ResourceData, meta 
 func resourceFileSystemDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
 
-	conn := meta.(*conns.AWSClient).EFSConn(ctx)
+	conn := meta.(*conns.AWSClient).EFSClient(ctx)
 
 	log.Printf("[DEBUG] Deleting EFS file system: %s", d.Id())
 	_, err := conn.DeleteFileSystem(ctx, &efs.DeleteFileSystemInput{
