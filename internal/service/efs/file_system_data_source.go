@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/efs"
+	awstypes "github.com/aws/aws-sdk-go-v2/service/efs/types"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -119,7 +120,7 @@ func DataSourceFileSystem() *schema.Resource {
 
 func dataSourceFileSystemRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
-	conn := meta.(*conns.AWSClient).EFSConn(ctx)
+	conn := meta.(*conns.AWSClient).EFSClient(ctx)
 	ignoreTagsConfig := meta.(*conns.AWSClient).IgnoreTagsConfig
 
 	input := &efs.DescribeFileSystemsInput{}
@@ -132,10 +133,10 @@ func dataSourceFileSystemRead(ctx context.Context, d *schema.ResourceData, meta 
 		input.FileSystemId = aws.String(v.(string))
 	}
 
-	filter := tfslices.PredicateTrue[*efs.FileSystemDescription]()
+	filter := tfslices.PredicateTrue[*awstypes.FileSystemDescription]()
 
 	if tagsToMatch := tftags.New(ctx, d.Get(names.AttrTags).(map[string]interface{})).IgnoreAWS().IgnoreConfig(ignoreTagsConfig); len(tagsToMatch) > 0 {
-		filter = func(v *efs.FileSystemDescription) bool {
+		filter = func(v *awstypes.FileSystemDescription) bool {
 			return KeyValueTags(ctx, v.Tags).ContainsAll(tagsToMatch)
 		}
 	}
@@ -179,7 +180,7 @@ func dataSourceFileSystemRead(ctx context.Context, d *schema.ResourceData, meta 
 			aws.ToString(fs.FileSystemId), err)
 	}
 
-	if err := d.Set("lifecycle_policy", flattenFileSystemLifecyclePolicies(res.LifecyclePolicies)); err != nil {
+	if err := d.Set("lifecycle_policy", flattenFileSystemLifecyclePolicies(LifecyclePolicyToPointer(res.LifecyclePolicies))); err != nil {
 		return sdkdiag.AppendErrorf(diags, "setting lifecycle_policy: %s", err)
 	}
 
