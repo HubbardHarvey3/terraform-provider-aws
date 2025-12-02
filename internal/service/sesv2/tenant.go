@@ -6,8 +6,8 @@ package sesv2
 import (
 	"context"
 	"errors"
-	"time"
 	"fmt"
+	"time"
 
 	"github.com/YakDriver/smarterr"
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -101,20 +101,20 @@ func (r *resourceTenant) Create(ctx context.Context, req resource.CreateRequest,
 	// TIP: -- 2. Fetch the plan
 	var plan resourceTenantModel
 
-	smerr.EnrichAppend(ctx, &resp.Diagnostics, req.Plan.Get(ctx, &plan))
+	smerr.AddEnrich(ctx, &resp.Diagnostics, req.Plan.Get(ctx, &plan))
 	if resp.Diagnostics.HasError() {
 		return
 	}
-
 	// TIP: -- 3. Populate a Create input structure
 	var input sesv2.CreateTenantInput
 
+	input.Tags = getTagsIn(ctx)
+
 	// TIP: Using a field name prefix allows mapping fields such as `ID` to `TenantId`
-	smerr.EnrichAppend(ctx, &resp.Diagnostics, flex.Expand(ctx, plan, &input, flex.WithFieldNamePrefix("Tenant")))
+	smerr.AddEnrich(ctx, &resp.Diagnostics, flex.Expand(ctx, plan, &input, flex.WithFieldNamePrefix("Tenant")))
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	fmt.Printf("Made it to EnrichAppend in Create ::::")
 
 	// TIP: -- 4. Call the AWS Create function
 	out, err := conn.CreateTenant(ctx, &input)
@@ -128,20 +128,18 @@ func (r *resourceTenant) Create(ctx context.Context, req resource.CreateRequest,
 		smerr.AddError(ctx, &resp.Diagnostics, errors.New("empty output"), smerr.ID, plan.TenantName.String())
 		return
 	}
+	fmt.Printf("Debugging out.Tags from the output of Create Tenant :::: %v\n", out.Tags)
+	fmt.Printf("Debugging out.Tags from the output of Create Tenant is type :::: %T\n", out.Tags)
+	fmt.Printf("Debugging out.TenantId from the output of Create Tenant :::: %v\n", out.TenantId)
 
-	tflog.Info(ctx, "DEBUGGING ::::", map[string]any{
-		"tenant_arn":   aws.ToString(out.TenantArn),
-		"created_time": out.CreatedTimestamp,
-	})
-
-	smerr.EnrichAppend(ctx, &resp.Diagnostics, flex.Flatten(ctx, out, &plan, flex.WithFieldNamePrefix("Tenant")))
+	smerr.AddEnrich(ctx, &resp.Diagnostics, flex.Flatten(ctx, out, &plan, flex.WithFieldNamePrefix("Tenant")))
 	if resp.Diagnostics.HasError() {
 		return
 	}
 	plan.CreatedTimestamp = types.StringValue(aws.ToTime(out.CreatedTimestamp).Format(time.RFC3339))
 	plan.ID = types.StringValue(aws.ToString(out.TenantId))
 	// TIP: -- 7. Save the request plan to response state
-	smerr.EnrichAppend(ctx, &resp.Diagnostics, resp.State.Set(ctx, plan))
+	smerr.AddEnrich(ctx, &resp.Diagnostics, resp.State.Set(ctx, plan))
 }
 
 func (r *resourceTenant) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -161,7 +159,7 @@ func (r *resourceTenant) Read(ctx context.Context, req resource.ReadRequest, res
 
 	// TIP: -- 2. Fetch the state
 	var state resourceTenantModel
-	smerr.EnrichAppend(ctx, &resp.Diagnostics, req.State.Get(ctx, &state))
+	smerr.AddEnrich(ctx, &resp.Diagnostics, req.State.Get(ctx, &state))
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -184,7 +182,7 @@ func (r *resourceTenant) Read(ctx context.Context, req resource.ReadRequest, res
 		"tenant_name": state.TenantName.ValueString(),
 	})
 	// TIP: -- 5. Set the arguments and attributes
-	smerr.EnrichAppend(ctx, &resp.Diagnostics, flex.Flatten(ctx, out, &state))
+	smerr.AddEnrich(ctx, &resp.Diagnostics, flex.Flatten(ctx, out, &state))
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -195,7 +193,7 @@ func (r *resourceTenant) Read(ctx context.Context, req resource.ReadRequest, res
 		"created_timestamp": state.CreatedTimestamp.ValueString(),
 	})
 	// TIP: -- 6. Set the state
-	smerr.EnrichAppend(ctx, &resp.Diagnostics, resp.State.Set(ctx, &state))
+	smerr.AddEnrich(ctx, &resp.Diagnostics, resp.State.Set(ctx, &state))
 }
 
 //func (r *resourceTenant) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -485,13 +483,13 @@ func FindTenantByName(ctx context.Context, conn *sesv2.Client, name string) (*aw
 // https://developer.hashicorp.com/terraform/plugin/framework/handling-data/accessing-values
 type resourceTenantModel struct {
 	framework.WithRegionModel
-	ARN              types.String        `tfsdk:"arn"`
-	CreatedTimestamp types.String        `tfsdk:"created_timestamp"`
-	ID               types.String        `tfsdk:"id"`
-	SendingStatus    types.String        `tfsdk:"sending_status"`
-	Tags             tftags.KeyValueTags `tfsdk:"tags"`
-	TagsAll          tftags.Map          `tfsdk:"tags_all"`
-	TenantName       types.String        `tfsdk:"tenant_name"`
+	ARN              types.String `tfsdk:"arn"`
+	CreatedTimestamp types.String `tfsdk:"created_timestamp"`
+	ID               types.String `tfsdk:"id"`
+	SendingStatus    types.String `tfsdk:"sending_status"`
+	Tags             tftags.Map   `tfsdk:"tags"`
+	TagsAll          tftags.Map   `tfsdk:"tags_all"`
+	TenantName       types.String `tfsdk:"tenant_name"`
 }
 
 // TIP: ==== SWEEPERS ====
