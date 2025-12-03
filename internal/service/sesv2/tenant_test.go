@@ -29,14 +29,14 @@ import (
 	"github.com/YakDriver/regexache"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
-	awstypes "github.com/aws/aws-sdk-go-v2/service/sesv2/types"
-	sdkacctest "github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+
 	//"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/hashicorp/terraform-provider-aws/internal/acctest"
 	"github.com/hashicorp/terraform-provider-aws/internal/conns"
 	"github.com/hashicorp/terraform-provider-aws/internal/create"
+
 	//"github.com/hashicorp/terraform-provider-aws/internal/errs"
 	"github.com/hashicorp/terraform-provider-aws/internal/tfresource"
 	"github.com/hashicorp/terraform-provider-aws/names"
@@ -138,9 +138,7 @@ func TestAccSESV2Tenant_basic(t *testing.T) {
 		t.Skip("skipping long-running test in short mode")
 	}
 
-	var tenant awstypes.Tenant
-	rName := sdkacctest.RandomWithPrefix(acctest.ResourcePrefix)
-	resourceName := "aws_sesv2_tenant.test"
+	resourceName := "test"
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck: func() {
@@ -152,19 +150,21 @@ func TestAccSESV2Tenant_basic(t *testing.T) {
 		CheckDestroy:             testAccCheckTenantDestroy(ctx),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccTenantConfig_basic(rName, ""),
+				Config: testAccTenantConfig_basic(resourceName, ""),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					testAccCheckTenantExists(ctx, resourceName, &tenant),
-					// TIP: If the ARN can be partially or completely determined by the parameters passed, e.g. it contains the
-					// value of `rName`, either include the values in the regex or check for an exact match using `acctest.CheckResourceAttrRegionalARN`
-					acctest.MatchResourceAttrRegionalARN(ctx, resourceName, names.AttrARN, "sesv2", regexache.MustCompile(`tenant:.+$`)),
+					testAccCheckTenantExists(ctx, resourceName),
+					resource.TestCheckResourceAttr(resourceName, "tags.testkey", "testvalue"),
+					resource.TestCheckResourceAttr(resourceName, "tags_all.testkey", "testvalue"),
+					// The ARN for SESv2 tenants uses "ses" as the service identifier, not "sesv2".
+					// The resource part of the ARN is also path-like, not colon-separated.
+					acctest.MatchResourceAttrRegionalARN(ctx, resourceName, names.AttrARN, "ses", regexache.MustCompile(`tenant/.+$`)),
 				),
 			},
 			{
 				ResourceName:            resourceName,
 				ImportState:             true,
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"apply_immediately", "user"},
+				ImportStateVerifyIgnore: []string{"apply_immediately", "user", "tags_all"},
 			},
 		},
 	})
@@ -179,43 +179,41 @@ func testAccCheckTenantDestroy(ctx context.Context) resource.TestCheckFunc {
 				continue
 			}
 
-			// TIP: ==== FINDERS ====
-			// The find function should be exported. Since it won't be used outside of the package, it can be exported
-			// in the `exports_test.go` file.
-			_, err := tfsesv2.FindTenantByName(ctx, conn, rs.Primary.ID)
+			tenantName := rs.Primary.Attributes["tenant_name"]
+			_, err := tfsesv2.FindTenantByName(ctx, conn, tenantName)
+
 			if tfresource.NotFound(err) {
 				return nil
 			}
 			if err != nil {
-				return create.Error(names.SESV2, create.ErrActionCheckingDestroyed, tfsesv2.ResNameTenant, rs.Primary.ID, err)
+				return create.Error(names.SESV2, create.ErrActionCheckingDestroyed, tfsesv2.ResNameTenant, tenantName, err)
 			}
 
-			return create.Error(names.SESV2, create.ErrActionCheckingDestroyed, tfsesv2.ResNameTenant, rs.Primary.ID, errors.New("not destroyed"))
+			return create.Error(names.SESV2, create.ErrActionCheckingDestroyed, tfsesv2.ResNameTenant, tenantName, errors.New("not destroyed"))
 		}
 
 		return nil
 	}
 }
 
-func testAccCheckTenantExists(ctx context.Context, name string, tenant *awstypes.Tenant) resource.TestCheckFunc {
+func testAccCheckTenantExists(ctx context.Context, name string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[name]
 		if !ok {
 			return create.Error(names.SESV2, create.ErrActionCheckingExistence, tfsesv2.ResNameTenant, name, errors.New("not found"))
 		}
 
-		if rs.Primary.ID == "" {
-			return create.Error(names.SESV2, create.ErrActionCheckingExistence, tfsesv2.ResNameTenant, name, errors.New("not set"))
+		tenantName, ok := rs.Primary.Attributes["tenant_name"]
+		if !ok || tenantName == "" {
+			return create.Error(names.SESV2, create.ErrActionCheckingExistence, tfsesv2.ResNameTenant, name, errors.New("tenant_name attribute not found or empty"))
 		}
 
 		conn := acctest.Provider.Meta().(*conns.AWSClient).SESV2Client(ctx)
 
-		resp, err := tfsesv2.FindTenantByName(ctx, conn, rs.Primary.ID)
+		_, err := tfsesv2.FindTenantByName(ctx, conn, tenantName)
 		if err != nil {
-			return create.Error(names.SESV2, create.ErrActionCheckingExistence, tfsesv2.ResNameTenant, rs.Primary.ID, err)
+			return create.Error(names.SESV2, create.ErrActionCheckingExistence, tfsesv2.ResNameTenant, tenantName, err)
 		}
-
-		*tenant = *resp
 
 		return nil
 	}
@@ -252,6 +250,9 @@ func testAccTenantConfig_basic(rName, version string) string {
 	return fmt.Sprintf(`
 resource "aws_sesv2_tenant" "test" {
   tenant_name             = %[1]q
+	tags = {
+		"testkey" = "testvalue"
+	}
 }
 `, rName, version)
 }

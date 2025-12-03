@@ -34,7 +34,6 @@ import (
 	"github.com/hashicorp/terraform-provider-aws/internal/framework/flex"
 
 	//fwtypes "github.com/hashicorp/terraform-provider-aws/internal/framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-provider-aws/internal/smerr"
 	"github.com/hashicorp/terraform-provider-aws/internal/sweep"
 	sweepfw "github.com/hashicorp/terraform-provider-aws/internal/sweep/framework"
@@ -55,6 +54,7 @@ import (
 
 // Function annotations are used for resource registration to the Provider. DO NOT EDIT.
 // @FrameworkResource("aws_sesv2_tenant", name="Tenant")
+// @Tags(identifierAttribute="arn")
 func newResourceTenant(_ context.Context) (resource.ResourceWithConfigure, error) {
 	r := &resourceTenant{}
 	return r, nil
@@ -108,8 +108,6 @@ func (r *resourceTenant) Create(ctx context.Context, req resource.CreateRequest,
 	// TIP: -- 3. Populate a Create input structure
 	var input sesv2.CreateTenantInput
 
-	input.Tags = getTagsIn(ctx)
-
 	// TIP: Using a field name prefix allows mapping fields such as `ID` to `TenantId`
 	smerr.AddEnrich(ctx, &resp.Diagnostics, flex.Expand(ctx, plan, &input, flex.WithFieldNamePrefix("Tenant")))
 	if resp.Diagnostics.HasError() {
@@ -128,18 +126,16 @@ func (r *resourceTenant) Create(ctx context.Context, req resource.CreateRequest,
 		smerr.AddError(ctx, &resp.Diagnostics, errors.New("empty output"), smerr.ID, plan.TenantName.String())
 		return
 	}
-	fmt.Printf("Debugging out.Tags from the output of Create Tenant :::: %v\n", out.Tags)
-	fmt.Printf("Debugging out.Tags from the output of Create Tenant is type :::: %T\n", out.Tags)
-	fmt.Printf("Debugging out.TenantId from the output of Create Tenant :::: %v\n", out.TenantId)
-
-	smerr.AddEnrich(ctx, &resp.Diagnostics, flex.Flatten(ctx, out, &plan, flex.WithFieldNamePrefix("Tenant")))
+	smerr.AddEnrich(ctx, &resp.Diagnostics, flex.Flatten(ctx, out, &plan, flex.WithFieldNamePrefix("Tenant"), flex.WithIgnoredFieldNames([]string{"CreatedTimestamp", "Tags"})))
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	plan.CreatedTimestamp = types.StringValue(aws.ToTime(out.CreatedTimestamp).Format(time.RFC3339))
 	plan.ID = types.StringValue(aws.ToString(out.TenantId))
+	plan.ARN = types.StringValue(aws.ToString(out.TenantArn))
+	plan.CreatedTimestamp = types.StringValue(aws.ToTime(out.CreatedTimestamp).Format(time.RFC3339))
+
 	// TIP: -- 7. Save the request plan to response state
-	smerr.AddEnrich(ctx, &resp.Diagnostics, resp.State.Set(ctx, plan))
+	smerr.AddEnrich(ctx, &resp.Diagnostics, resp.State.Set(ctx, &plan))
 }
 
 func (r *resourceTenant) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -167,6 +163,8 @@ func (r *resourceTenant) Read(ctx context.Context, req resource.ReadRequest, res
 	// TIP: -- 3. Get the resource from AWS using an API Get, List, or Describe-
 	// type function, or, better yet, using a finder.
 	out, err := FindTenantByName(ctx, conn, state.TenantName.ValueString())
+
+	fmt.Printf("DEBUG :::: FindTenantByName == %v\n", *out.TenantName)
 	// TIP: -- 4. Remove resource from state if it is not found
 	if tfresource.NotFound(err) {
 		resp.Diagnostics.Append(fwdiag.NewResourceNotFoundWarningDiagnostic(err))
@@ -178,20 +176,14 @@ func (r *resourceTenant) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 
-	tflog.Info(ctx, "Read Tenant started", map[string]any{
-		"tenant_name": state.TenantName.ValueString(),
-	})
+	state.CreatedTimestamp = types.StringValue(aws.ToTime(out.CreatedTimestamp).Format(time.RFC3339))
+
 	// TIP: -- 5. Set the arguments and attributes
-	smerr.AddEnrich(ctx, &resp.Diagnostics, flex.Flatten(ctx, out, &state))
+	smerr.AddEnrich(ctx, &resp.Diagnostics, flex.Flatten(ctx, out, &state, flex.WithIgnoredFieldNames([]string{"Tags", "CreatedTimestamp"})))
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	state.ARN = types.StringValue(*out.TenantArn)
-	state.CreatedTimestamp = types.StringValue(aws.ToTime(out.CreatedTimestamp).Format(time.RFC3339))
 
-	tflog.Info(ctx, "TIMESTAMP ::::", map[string]any{
-		"created_timestamp": state.CreatedTimestamp.ValueString(),
-	})
 	// TIP: -- 6. Set the state
 	smerr.AddEnrich(ctx, &resp.Diagnostics, resp.State.Set(ctx, &state))
 }
