@@ -126,7 +126,7 @@ func (r *resourceTenant) Create(ctx context.Context, req resource.CreateRequest,
 		smerr.AddError(ctx, &resp.Diagnostics, errors.New("empty output"), smerr.ID, plan.TenantName.String())
 		return
 	}
-	smerr.AddEnrich(ctx, &resp.Diagnostics, flex.Flatten(ctx, out, &plan, flex.WithFieldNamePrefix("Tenant"), flex.WithIgnoredFieldNames([]string{"CreatedTimestamp", "Tags"})))
+	smerr.AddEnrich(ctx, &resp.Diagnostics, flex.Flatten(ctx, out, &plan, flex.WithFieldNamePrefix("Tenant"), flex.WithIgnoredFieldNames([]string{"CreatedTimestamp"})))
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -139,17 +139,6 @@ func (r *resourceTenant) Create(ctx context.Context, req resource.CreateRequest,
 }
 
 func (r *resourceTenant) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	// TIP: ==== RESOURCE READ ====
-	// Generally, the Read function should do the following things. Make
-	// sure there is a good reason if you don't do one of these.
-	//
-	// 1. Get a client connection to the relevant service
-	// 2. Fetch the state
-	// 3. Get the resource from AWS
-	// 4. Remove resource from state if it is not found
-	// 5. Set the arguments and attributes
-	// 6. Set the state
-
 	// TIP: -- 1. Get a client connection to the relevant service
 	conn := r.Meta().SESV2Client(ctx)
 
@@ -163,8 +152,8 @@ func (r *resourceTenant) Read(ctx context.Context, req resource.ReadRequest, res
 	// TIP: -- 3. Get the resource from AWS using an API Get, List, or Describe-
 	// type function, or, better yet, using a finder.
 	out, err := FindTenantByName(ctx, conn, state.TenantName.ValueString())
+	fmt.Printf("DEBUG :::: FindTenantByName == %v\n", out.TenantName)
 
-	fmt.Printf("DEBUG :::: FindTenantByName == %v\n", *out.TenantName)
 	// TIP: -- 4. Remove resource from state if it is not found
 	if tfresource.NotFound(err) {
 		resp.Diagnostics.Append(fwdiag.NewResourceNotFoundWarningDiagnostic(err))
@@ -176,11 +165,21 @@ func (r *resourceTenant) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 
+	setTagsOut(ctx, out.Tags)
+	// TIP: -- 5. Set the arguments and attributes
+	smerr.AddEnrich(ctx, &resp.Diagnostics, flex.Flatten(ctx, out, &state, flex.WithIgnoredFieldNames([]string{"CreatedTimestamp"})))
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	fmt.Printf("DEBUG :::: FindTenantByName TagsAll == %v\n", out.Tags)
+	fmt.Printf("DEBUG :::: FindTenantByName TagsAll Type == %T\n", out.Tags)
+
+	state.ID = types.StringValue(aws.ToString(out.TenantId))
+	state.ARN = types.StringValue(aws.ToString(out.TenantArn))
 	state.CreatedTimestamp = types.StringValue(aws.ToTime(out.CreatedTimestamp).Format(time.RFC3339))
 
-	// TIP: -- 5. Set the arguments and attributes
-	smerr.AddEnrich(ctx, &resp.Diagnostics, flex.Flatten(ctx, out, &state, flex.WithIgnoredFieldNames([]string{"Tags", "CreatedTimestamp"})))
-	if resp.Diagnostics.HasError() {
+	if resp.Diagnostics.HasError() { 
 		return
 	}
 
@@ -188,81 +187,14 @@ func (r *resourceTenant) Read(ctx context.Context, req resource.ReadRequest, res
 	smerr.AddEnrich(ctx, &resp.Diagnostics, resp.State.Set(ctx, &state))
 }
 
-//func (r *resourceTenant) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-//	// TIP: ==== RESOURCE UPDATE ====
-//	// Not all resources have Update functions. There are a few reasons:
-//	// a. The AWS API does not support changing a resource
-//	// b. All arguments have RequiresReplace() plan modifiers
-//	// c. The AWS API uses a create call to modify an existing resource
-//	//
-//	// In the cases of a. and b., the resource will not have an update method
-//	// defined. In the case of c., Update and Create can be refactored to call
-//	// the same underlying function.
-//	//
-//	// The rest of the time, there should be an Update function and it should
-//	// do the following things. Make sure there is a good reason if you don't
-//	// do one of these.
-//	//
-//	// 1. Get a client connection to the relevant service
-//	// 2. Fetch the plan and state
-//	// 3. Populate a modify input structure and check for changes
-//	// 4. Call the AWS modify/update function
-//	// 5. Use a waiter to wait for update to complete
-//	// 6. Save the request plan to response state
-//	// TIP: -- 1. Get a client connection to the relevant service
-//	conn := r.Meta().SESV2Client(ctx)
-//
-//	// TIP: -- 2. Fetch the plan
-//	var plan, state resourceTenantModel
-//	smerr.EnrichAppend(ctx, &resp.Diagnostics, req.Plan.Get(ctx, &plan))
-//	smerr.EnrichAppend(ctx, &resp.Diagnostics, req.State.Get(ctx, &state))
-//	if resp.Diagnostics.HasError() {
-//		return
-//	}
-//
-//	// TIP: -- 3. Get the difference between the plan and state, if any
-//	diff, d := flex.Diff(ctx, plan, state)
-//	smerr.EnrichAppend(ctx, &resp.Diagnostics, d)
-//	if resp.Diagnostics.HasError() {
-//		return
-//	}
-//
-//	if diff.HasChanges() {
-//		var input sesv2.UpdateTenantInput
-//		smerr.EnrichAppend(ctx, &resp.Diagnostics, flex.Expand(ctx, plan, &input, flex.WithFieldNamePrefix("Test")))
-//		if resp.Diagnostics.HasError() {
-//			return
-//		}
-//
-//		// TIP: -- 4. Call the AWS modify/update function
-//		out, err := conn.UpdateTenant(ctx, &input)
-//		if err != nil {
-//			smerr.AddError(ctx, &resp.Diagnostics, err, smerr.ID, plan.ID.String())
-//			return
-//		}
-//		if out == nil || out.Tenant == nil {
-//			smerr.AddError(ctx, &resp.Diagnostics, errors.New("empty output"), smerr.ID, plan.ID.String())
-//			return
-//		}
-//
-//		// TIP: Using the output from the update function, re-set any computed attributes
-//		smerr.EnrichAppend(ctx, &resp.Diagnostics, flex.Flatten(ctx, out, &plan))
-//		if resp.Diagnostics.HasError() {
-//			return
-//		}
-//	}
-//
-//	// TIP: -- 5. Use a waiter to wait for update to complete
-//	updateTimeout := r.UpdateTimeout(ctx, plan.Timeouts)
-//	_, err := waitTenantUpdated(ctx, conn, plan.ID.ValueString(), updateTimeout)
-//	if err != nil {
-//		smerr.AddError(ctx, &resp.Diagnostics, err, smerr.ID, plan.ID.String())
-//		return
-//	}
-//
-//	// TIP: -- 6. Save the request plan to response state
-//	smerr.EnrichAppend(ctx, &resp.Diagnostics, resp.State.Set(ctx, &plan))
-//}
+func (r *resourceTenant) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	// The only updatable attribute is tags, which is handled by the framework.
+	// The framework will call TagResource and UntagResource for us.
+	// We just need to set the state from the plan.
+	var plan resourceTenantModel
+	smerr.AddEnrich(ctx, &resp.Diagnostics, req.Plan.Get(ctx, &plan))
+	smerr.AddEnrich(ctx, &resp.Diagnostics, resp.State.Set(ctx, &plan))
+}
 
 func (r *resourceTenant) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	// TIP: ==== RESOURCE DELETE ====
@@ -459,6 +391,18 @@ func FindTenantByName(ctx context.Context, conn *sesv2.Client, name string) (*aw
 	}
 
 	return out.Tenant, nil
+}
+
+func GetAllTags(ctx context.Context, conn *sesv2.Client, arn string) ([]awstypes.Tag, error) {
+	input := sesv2.ListTagsForResourceInput{
+		ResourceArn: aws.String(arn),
+	}
+	out, err := conn.ListTagsForResource(ctx, &input)
+	if err != nil {
+		return nil, smarterr.NewError(err)
+	}
+
+	return out.Tags, nil
 }
 
 // TIP: ==== DATA STRUCTURES ====

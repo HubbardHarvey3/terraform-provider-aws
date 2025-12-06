@@ -138,33 +138,31 @@ func TestAccSESV2Tenant_basic(t *testing.T) {
 		t.Skip("skipping long-running test in short mode")
 	}
 
-	resourceName := "test"
+	rName := acctest.RandomWithPrefix(t, "tf-acc-test")
+	resourceName := "aws_sesv2_tenant.test"
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck: func() {
 			acctest.PreCheck(ctx, t)
 			testAccPreCheck(ctx, t)
 		},
-		ErrorCheck:               acctest.ErrorCheck(t, names.SESV2ServiceID),
+		ErrorCheck:               acctest.ErrorCheck(t, tfsesv2.ResNameTenant),
 		ProtoV5ProviderFactories: acctest.ProtoV5ProviderFactories,
 		CheckDestroy:             testAccCheckTenantDestroy(ctx),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccTenantConfig_basic(resourceName, ""),
+				Config: testAccTenantConfig_basic(rName),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					testAccCheckTenantExists(ctx, resourceName),
 					resource.TestCheckResourceAttr(resourceName, "tags.testkey", "testvalue"),
 					resource.TestCheckResourceAttr(resourceName, "tags_all.testkey", "testvalue"),
-					// The ARN for SESv2 tenants uses "ses" as the service identifier, not "sesv2".
-					// The resource part of the ARN is also path-like, not colon-separated.
 					acctest.MatchResourceAttrRegionalARN(ctx, resourceName, names.AttrARN, "ses", regexache.MustCompile(`tenant/.+$`)),
 				),
 			},
 			{
-				ResourceName:            resourceName,
-				ImportState:             true,
-				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"apply_immediately", "user", "tags_all"},
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
 			},
 		},
 	})
@@ -246,7 +244,7 @@ func testAccCheckTenantNotRecreated(before, after *sesv2.GetTenantOutput) resour
 	}
 }
 
-func testAccTenantConfig_basic(rName, version string) string {
+func testAccTenantConfig_basic(rName string) string {
 	return fmt.Sprintf(`
 resource "aws_sesv2_tenant" "test" {
   tenant_name             = %[1]q
@@ -254,5 +252,5 @@ resource "aws_sesv2_tenant" "test" {
 		"testkey" = "testvalue"
 	}
 }
-`, rName, version)
+`, rName)
 }
