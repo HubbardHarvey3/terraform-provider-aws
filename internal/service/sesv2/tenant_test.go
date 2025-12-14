@@ -160,8 +160,15 @@ func TestAccSESV2Tenant_basic(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:      resourceName,
-				ImportState:       true,
+				ResourceName: resourceName,
+				ImportState:  true,
+				//				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+				//					rs, ok := s.RootModule().Resources[resourceName]
+				//					if !ok {
+				//						return "", fmt.Errorf("Resource not found in the state")
+				//					}
+				//					return rs.Primary.Attributes["tenant_name"], nil
+				//				},
 				ImportStateVerify: true,
 			},
 		},

@@ -55,6 +55,7 @@ import (
 // Function annotations are used for resource registration to the Provider. DO NOT EDIT.
 // @FrameworkResource("aws_sesv2_tenant", name="Tenant")
 // @Tags(identifierAttribute="arn")
+// @Testing(importStateIdAttribute="tenant_name")
 func newResourceTenant(_ context.Context) (resource.ResourceWithConfigure, error) {
 	r := &resourceTenant{}
 	return r, nil
@@ -107,6 +108,7 @@ func (r *resourceTenant) Create(ctx context.Context, req resource.CreateRequest,
 	}
 	// TIP: -- 3. Populate a Create input structure
 	var input sesv2.CreateTenantInput
+	input.Tags = getTagsIn(ctx)
 
 	// TIP: Using a field name prefix allows mapping fields such as `ID` to `TenantId`
 	smerr.AddEnrich(ctx, &resp.Diagnostics, flex.Expand(ctx, plan, &input, flex.WithFieldNamePrefix("Tenant")))
@@ -117,8 +119,6 @@ func (r *resourceTenant) Create(ctx context.Context, req resource.CreateRequest,
 	// TIP: -- 4. Call the AWS Create function
 	out, err := conn.CreateTenant(ctx, &input)
 	if err != nil {
-		// TIP: Since ID has not been set yet, you cannot use plan.ID.String()
-		// in error messages at this point.
 		smerr.AddError(ctx, &resp.Diagnostics, err, smerr.ID, plan.TenantName.String())
 		return
 	}
@@ -126,12 +126,12 @@ func (r *resourceTenant) Create(ctx context.Context, req resource.CreateRequest,
 		smerr.AddError(ctx, &resp.Diagnostics, errors.New("empty output"), smerr.ID, plan.TenantName.String())
 		return
 	}
-	smerr.AddEnrich(ctx, &resp.Diagnostics, flex.Flatten(ctx, out, &plan, flex.WithFieldNamePrefix("Tenant"), flex.WithIgnoredFieldNames([]string{"CreatedTimestamp"})))
+	smerr.AddEnrich(ctx, &resp.Diagnostics, flex.Flatten(ctx, out, &plan, flex.WithFieldNamePrefix("Tenant"), flex.WithIgnoredFieldNames([]string{"CreatedTimestamp", "TagsAll"})))
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	plan.ID = types.StringValue(aws.ToString(out.TenantId))
-	plan.ARN = types.StringValue(aws.ToString(out.TenantArn))
+	fmt.Printf("DEBUG :::: ID is %v\n", *out.TenantId)
+	plan.ID = types.StringValue(aws.ToString(out.TenantName))
 	plan.CreatedTimestamp = types.StringValue(aws.ToTime(out.CreatedTimestamp).Format(time.RFC3339))
 
 	// TIP: -- 7. Save the request plan to response state
@@ -152,7 +152,7 @@ func (r *resourceTenant) Read(ctx context.Context, req resource.ReadRequest, res
 	// TIP: -- 3. Get the resource from AWS using an API Get, List, or Describe-
 	// type function, or, better yet, using a finder.
 	out, err := FindTenantByName(ctx, conn, state.TenantName.ValueString())
-	fmt.Printf("DEBUG :::: FindTenantByName == %v\n", out.TenantName)
+	fmt.Printf("DEBUG :::: FindTenantByName == %v\n", state.TenantName.ValueString())
 
 	// TIP: -- 4. Remove resource from state if it is not found
 	if tfresource.NotFound(err) {
@@ -165,21 +165,20 @@ func (r *resourceTenant) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 
-	setTagsOut(ctx, out.Tags)
 	// TIP: -- 5. Set the arguments and attributes
-	smerr.AddEnrich(ctx, &resp.Diagnostics, flex.Flatten(ctx, out, &state, flex.WithIgnoredFieldNames([]string{"CreatedTimestamp"})))
+	smerr.AddEnrich(ctx, &resp.Diagnostics, flex.Flatten(ctx, out, &state, flex.WithFieldNamePrefix("Tenant"), flex.WithIgnoredFieldNames([]string{"CreatedTimestamp", "TagsAll"})))
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	fmt.Printf("DEBUG :::: FindTenantByName TagsAll == %v\n", out.Tags)
-	fmt.Printf("DEBUG :::: FindTenantByName TagsAll Type == %T\n", out.Tags)
-
-	state.ID = types.StringValue(aws.ToString(out.TenantId))
-	state.ARN = types.StringValue(aws.ToString(out.TenantArn))
+	kvTags := keyValueTags(ctx, getTagsIn(ctx))
+	plainMap := kvTags.Map()
+	state.TagsAll = tftags.FlattenStringValueMap(ctx, plainMap)
+	state.ID = types.StringValue(aws.ToString(out.TenantName))
 	state.CreatedTimestamp = types.StringValue(aws.ToTime(out.CreatedTimestamp).Format(time.RFC3339))
+	state.ARN = types.StringValue(aws.ToString(out.TenantArn))
 
-	if resp.Diagnostics.HasError() { 
+	if resp.Diagnostics.HasError() {
 		return
 	}
 
@@ -187,14 +186,14 @@ func (r *resourceTenant) Read(ctx context.Context, req resource.ReadRequest, res
 	smerr.AddEnrich(ctx, &resp.Diagnostics, resp.State.Set(ctx, &state))
 }
 
-func (r *resourceTenant) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	// The only updatable attribute is tags, which is handled by the framework.
-	// The framework will call TagResource and UntagResource for us.
-	// We just need to set the state from the plan.
-	var plan resourceTenantModel
-	smerr.AddEnrich(ctx, &resp.Diagnostics, req.Plan.Get(ctx, &plan))
-	smerr.AddEnrich(ctx, &resp.Diagnostics, resp.State.Set(ctx, &plan))
-}
+//func (r *resourceTenant) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+//	// The only updatable attribute is tags, which is handled by the framework.
+//	// The framework will call TagResource and UntagResource for us.
+//	// We just need to set the state from the plan.
+//	var plan resourceTenantModel
+//	smerr.AddEnrich(ctx, &resp.Diagnostics, req.Plan.Get(ctx, &plan))
+//	smerr.AddEnrich(ctx, &resp.Diagnostics, resp.State.Set(ctx, &plan))
+//}
 
 func (r *resourceTenant) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	// TIP: ==== RESOURCE DELETE ====
@@ -257,7 +256,7 @@ func (r *resourceTenant) Delete(ctx context.Context, req resource.DeleteRequest,
 // See more:
 // https://developer.hashicorp.com/terraform/plugin/framework/resources/import
 func (r *resourceTenant) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root(names.AttrID), req, resp)
+	resource.ImportStatePassthroughID(ctx, path.Root("tenant_name"), req, resp)
 }
 
 // TIP: ==== STATUS CONSTANTS ====
@@ -391,18 +390,6 @@ func FindTenantByName(ctx context.Context, conn *sesv2.Client, name string) (*aw
 	}
 
 	return out.Tenant, nil
-}
-
-func GetAllTags(ctx context.Context, conn *sesv2.Client, arn string) ([]awstypes.Tag, error) {
-	input := sesv2.ListTagsForResourceInput{
-		ResourceArn: aws.String(arn),
-	}
-	out, err := conn.ListTagsForResource(ctx, &input)
-	if err != nil {
-		return nil, smarterr.NewError(err)
-	}
-
-	return out.Tags, nil
 }
 
 // TIP: ==== DATA STRUCTURES ====
