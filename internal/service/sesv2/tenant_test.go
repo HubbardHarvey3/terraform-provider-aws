@@ -3,23 +3,6 @@
 
 package sesv2_test
 
-// **PLEASE DELETE THIS AND ALL TIP COMMENTS BEFORE SUBMITTING A PR FOR REVIEW!**
-//
-// TIP: ==== INTRODUCTION ====
-// Thank you for trying the skaff tool!
-//
-// You have opted to include these helpful comments. They all include "TIP:"
-// to help you find and remove them when you're done with them.
-//
-// While some aspects of this file are customized to your input, the
-// scaffold tool does *not* look at the AWS API and ensure it has correct
-// function, structure, and variable names. It makes guesses based on
-// commonalities. You will need to make significant adjustments.
-//
-// In other words, as generated, this is a rough outline of the work you will
-// need to do. If something doesn't make sense for your situation, get rid of
-// it.
-
 import (
 	"context"
 	"errors"
@@ -31,19 +14,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 
-	//"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/hashicorp/terraform-provider-aws/internal/acctest"
 	"github.com/hashicorp/terraform-provider-aws/internal/conns"
 	"github.com/hashicorp/terraform-provider-aws/internal/create"
 
-	//"github.com/hashicorp/terraform-provider-aws/internal/errs"
 	"github.com/hashicorp/terraform-provider-aws/internal/tfresource"
 	"github.com/hashicorp/terraform-provider-aws/names"
 
-	// TIP: You will often need to import the package that this test file lives
-	// in. Since it is in the "test" context, it must import the package to use
-	// any normal context constants, variables, or functions.
 	tfsesv2 "github.com/hashicorp/terraform-provider-aws/internal/service/sesv2"
 )
 
@@ -132,8 +110,6 @@ import (
 // Acceptance test access AWS and cost money to run.
 func TestAccSESV2Tenant_basic(t *testing.T) {
 	ctx := acctest.Context(t)
-	// TIP: This is a long-running test guard for tests that run longer than
-	// 300s (5 min) generally.
 	if testing.Short() {
 		t.Skip("skipping long-running test in short mode")
 	}
@@ -160,15 +136,8 @@ func TestAccSESV2Tenant_basic(t *testing.T) {
 				),
 			},
 			{
-				ResourceName: resourceName,
-				ImportState:  true,
-				//				ImportStateIdFunc: func(s *terraform.State) (string, error) {
-				//					rs, ok := s.RootModule().Resources[resourceName]
-				//					if !ok {
-				//						return "", fmt.Errorf("Resource not found in the state")
-				//					}
-				//					return rs.Primary.Attributes["tenant_name"], nil
-				//				},
+				ResourceName:      resourceName,
+				ImportState:       true,
 				ImportStateVerify: true,
 			},
 		},
