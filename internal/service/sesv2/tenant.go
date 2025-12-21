@@ -58,6 +58,9 @@ func (r *resourceTenant) Schema(ctx context.Context, req resource.SchemaRequest,
 			"created_timestamp": schema.StringAttribute{
 				Computed:    true,
 				Description: "The timestamp of when the Tenant was created",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			names.AttrID: framework.IDAttribute(),
 			"tenant_name": schema.StringAttribute{
@@ -70,6 +73,9 @@ func (r *resourceTenant) Schema(ctx context.Context, req resource.SchemaRequest,
 			"sending_status": schema.StringAttribute{
 				Computed:    true,
 				Description: "The sending status of the tenant. ENABLED, DISABLED, or REINSTATED",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			names.AttrTags:    tftags.TagsAttribute(),
 			names.AttrTagsAll: tftags.TagsAttributeComputedOnly(),
@@ -145,7 +151,7 @@ func (r *resourceTenant) Read(ctx context.Context, req resource.ReadRequest, res
 	state.ID = types.StringValue(aws.ToString(out.TenantName))
 	state.CreatedTimestamp = types.StringValue(aws.ToTime(out.CreatedTimestamp).Format(time.RFC3339))
 	state.ARN = types.StringValue(aws.ToString(out.TenantArn))
-	state.SendingStatus = types.StringValue(aws.ToString((*string)(&out.SendingStatus)))
+	state.SendingStatus = types.StringValue(string(out.SendingStatus))
 
 	if resp.Diagnostics.HasError() {
 		return
