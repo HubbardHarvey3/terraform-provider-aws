@@ -13,12 +13,14 @@ var (
 	ResourceFunction                    = resourceFunction
 	ResourceKeyGroup                    = resourceKeyGroup
 	ResourceMonitoringSubscription      = resourceMonitoringSubscription
+	ResourceMultiTenantDistribution     = newMultiTenantDistributionResource
 	ResourceOriginAccessControl         = resourceOriginAccessControl
 	ResourceOriginAccessIdentity        = resourceOriginAccessIdentity
 	ResourceOriginRequestPolicy         = resourceOriginRequestPolicy
 	ResourcePublicKey                   = resourcePublicKey
 	ResourceRealtimeLogConfig           = resourceRealtimeLogConfig
 	ResourceResponseHeadersPolicy       = resourceResponseHeadersPolicy
+	ResourceTrustStore                  = newTrustStoreResource
 	ResourceVPCOrigin                   = newVPCOriginResource
 
 	FindCachePolicyByID                        = findCachePolicyByID
@@ -35,6 +37,8 @@ var (
 	FindPublicKeyByID                          = findPublicKeyByID
 	FindRealtimeLogConfigByARN                 = findRealtimeLogConfigByARN
 	FindResponseHeadersPolicyByID              = findResponseHeadersPolicyByID
+	FindTrustStoreByID                         = findTrustStoreByID
 	FindVPCOriginByID                          = findVPCOriginByID
-	WaitDistributionDeployed                   = waitDistributionDeployed
+
+	WaitDistributionDeployed = waitDistributionDeployed
 )

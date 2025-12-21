@@ -1,9 +1,9 @@
 module github.com/hashicorp/terraform-provider-aws/tools
 
-go 1.24.11
+go 1.25.5
 
 require (
-	github.com/YakDriver/copyplop v0.2.0
+	github.com/YakDriver/copyplop v0.5.0
 	github.com/YakDriver/tfproviderdocs v0.23.3
 	github.com/client9/misspell v0.3.4
 	github.com/golangci/golangci-lint/v2 v2.7.2
