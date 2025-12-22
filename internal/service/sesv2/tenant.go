@@ -83,6 +83,12 @@ func (r *resourceTenant) Schema(ctx context.Context, req resource.SchemaRequest,
 	}
 }
 
+var tenantFlattenIgnoredFields = []string{
+	"CreatedTimestamp",
+	"TagsAll",
+	"Tags",
+}
+
 func (r *resourceTenant) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	conn := r.Meta().SESV2Client(ctx)
 
@@ -109,10 +115,11 @@ func (r *resourceTenant) Create(ctx context.Context, req resource.CreateRequest,
 		smerr.AddError(ctx, &resp.Diagnostics, errors.New("empty output"), smerr.ID, plan.TenantName.String())
 		return
 	}
-	smerr.AddEnrich(ctx, &resp.Diagnostics, flex.Flatten(ctx, out, &plan, flex.WithFieldNamePrefix("Tenant"), flex.WithIgnoredFieldNames([]string{"CreatedTimestamp", "TagsAll", "Tags"})))
+	smerr.AddEnrich(ctx, &resp.Diagnostics, flex.Flatten(ctx, out, &plan, flex.WithFieldNamePrefix("Tenant"), flex.WithIgnoredFieldNames(tenantFlattenIgnoredFields)))
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
 	plan.ID = types.StringValue(aws.ToString(out.TenantName))
 	plan.CreatedTimestamp = types.StringValue(aws.ToTime(out.CreatedTimestamp).Format(time.RFC3339))
 
@@ -140,7 +147,7 @@ func (r *resourceTenant) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 
-	smerr.AddEnrich(ctx, &resp.Diagnostics, flex.Flatten(ctx, out, &state, flex.WithFieldNamePrefix("Tenant"), flex.WithIgnoredFieldNames([]string{"CreatedTimestamp", "TagsAll", "Tags"})))
+	smerr.AddEnrich(ctx, &resp.Diagnostics, flex.Flatten(ctx, out, &state, flex.WithFieldNamePrefix("Tenant"), flex.WithIgnoredFieldNames(tenantFlattenIgnoredFields)))
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -244,8 +251,11 @@ func sweepTenants(ctx context.Context, client *conns.AWSClient) ([]sweep.Sweepab
 		}
 
 		for _, v := range page.Tenants {
-			sweepResources = append(sweepResources, sweepfw.NewSweepResource(newResourceTenant, client,
-				sweepfw.NewAttribute(names.AttrID, aws.ToString(v.TenantId))),
+			sweepResources = append(
+				sweepResources,
+				sweepfw.NewSweepResource(
+					newResourceTenant, client,
+					sweepfw.NewAttribute(names.AttrID, aws.ToString(v.TenantId))),
 			)
 		}
 	}
