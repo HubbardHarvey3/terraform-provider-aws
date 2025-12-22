@@ -26,6 +26,11 @@ Manages an AWS SESv2 (Simple Email V2) Tenant.
 
 ```terraform
 resource "aws_sesv2_tenant" "example" {
+  tenant_name = "example-tenant"
+
+  tags = {
+    Environment = "test"
+  }
 }
 ```
 
@@ -33,40 +38,42 @@ resource "aws_sesv2_tenant" "example" {
 
 The following arguments are required:
 
-* `example_arg` - (Required) Brief description of the required argument.
+* `tenant_name` - Name of the SESV2 tenant.  The name must be unique within the AWS account and Region.  Changing the tenant name forces creation of a new tenant.
 
 The following arguments are optional:
 
-* `optional_arg` - (Optional) Brief description of the optional argument.
+* `tags` - Map of tags to assign to the tenant.
 
 ## Attribute Reference
 
 This resource exports the following attributes in addition to the arguments above:
 
 * `arn` - ARN of the Tenant.
-* `example_attribute` - Brief description of the attribute.
+* `created_timestamp` – Timestamp when the tenant was created.
+* `sending_status` – Current sending status of the tenant.
+* `tags_all` – Map of tags assigned to the tenant, including provider default tags.
 
 ## Timeouts
 
 [Configuration options](https://developer.hashicorp.com/terraform/language/resources/syntax#operation-timeouts):
 
 * `create` - (Default `60m`)
-* `update` - (Default `180m`)
 * `delete` - (Default `90m`)
 
 ## Import
 
-In Terraform v1.5.0 and later, use an [`import` block](https://developer.hashicorp.com/terraform/language/import) to import SESv2 (Simple Email V2) Tenant using the `example_id_arg`. For example:
+In Terraform v1.5.0 and later, use an import block to import an SESv2 tenant using the tenant name.
 
+For example:
 ```terraform
 import {
   to = aws_sesv2_tenant.example
-  id = "tenant-id-12345678"
+  id = "example-tenant"
 }
 ```
 
-Using `terraform import`, import SESv2 (Simple Email V2) Tenant using the `example_id_arg`. For example:
+Using `terraform import`, import SESv2 (Simple Email V2) Tenant using the `tenant_name`. For example:
 
 ```console
-% terraform import aws_sesv2_tenant.example tenant-id-12345678
+% terraform import aws_sesv2_tenant.example example-tenant
 ```

@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/YakDriver/regexache"
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 
@@ -31,8 +29,11 @@ func TestAccSESV2Tenant_basic(t *testing.T) {
 		t.Skip("skipping long-running test in short mode")
 	}
 
-	rName := acctest.RandomWithPrefix(t, "tf-acc-test")
+	rName1 := acctest.RandomWithPrefix(t, "tf-acc-test")
+	rName2 := acctest.RandomWithPrefix(t, "tf-acc-test-new")
 	resourceName := "aws_sesv2_tenant.test"
+
+	var tenantID string
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck: func() {
@@ -44,14 +45,26 @@ func TestAccSESV2Tenant_basic(t *testing.T) {
 		CheckDestroy:             testAccCheckTenantDestroy(ctx),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccTenantConfig_basic(rName),
+				Config: testAccTenantConfig_basic(rName1),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					testAccCheckTenantExists(ctx, resourceName),
-					resource.TestCheckResourceAttr(resourceName, "tags.testkey", "testvalue"),
-					resource.TestCheckResourceAttr(resourceName, "tags_all.testkey", "testvalue"),
-					resource.TestCheckResourceAttrSet(resourceName, "created_timestamp"),
-					resource.TestCheckResourceAttrSet(resourceName, "sending_status"),
-					acctest.MatchResourceAttrRegionalARN(ctx, resourceName, names.AttrARN, "ses", regexache.MustCompile(`tenant/.+$`)),
+					resource.TestCheckResourceAttr(resourceName, "tenant_name", rName1),
+					resource.TestCheckResourceAttrSet(resourceName, "id"),
+					func(s *terraform.State) error {
+						rs := s.RootModule().Resources[resourceName]
+						tenantID = rs.Primary.ID
+						return nil
+					},
+				),
+			},
+			{
+				Config: testAccTenantConfig_basic(rName2),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					testAccCheckTenantExists(ctx, resourceName),
+					resource.TestCheckResourceAttr(resourceName, "tenant_name", rName2),
+					resource.TestCheckResourceAttrSet(resourceName, "id"),
+					testAccCheckTenantRecreated(resourceName, &tenantID),
+					testAccCheckTenantDoesNotExist(ctx, rName1),
 				),
 			},
 			{
@@ -124,6 +137,38 @@ func testAccPreCheck(ctx context.Context, t *testing.T) {
 	}
 	if err != nil {
 		t.Fatalf("unexpected PreCheck error: %s", err)
+	}
+}
+
+func testAccCheckTenantRecreated(name string, oldID *string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[name]
+		if !ok {
+			return fmt.Errorf("resource not found: %s", name)
+		}
+
+		if rs.Primary.ID == *oldID {
+			return fmt.Errorf("tenant was not recreated (ID did not change)")
+		}
+
+		*oldID = rs.Primary.ID
+		return nil
+	}
+}
+
+func testAccCheckTenantDoesNotExist(ctx context.Context, tenantName string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		conn := acctest.Provider.Meta().(*conns.AWSClient).SESV2Client(ctx)
+
+		_, err := tfsesv2.FindTenantByName(ctx, conn, tenantName)
+		if tfresource.NotFound(err) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+
+		return fmt.Errorf("tenant %q still exists", tenantName)
 	}
 }
 
