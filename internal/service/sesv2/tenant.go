@@ -6,28 +6,25 @@ package sesv2
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/YakDriver/smarterr"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
 	awstypes "github.com/aws/aws-sdk-go-v2/service/sesv2/types"
-
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
-
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-provider-aws/internal/conns"
-
 	"github.com/hashicorp/terraform-provider-aws/internal/errs"
 	"github.com/hashicorp/terraform-provider-aws/internal/errs/fwdiag"
 	"github.com/hashicorp/terraform-provider-aws/internal/framework"
 	"github.com/hashicorp/terraform-provider-aws/internal/framework/flex"
-
 	"github.com/hashicorp/terraform-provider-aws/internal/smerr"
 	"github.com/hashicorp/terraform-provider-aws/internal/sweep"
 	sweepfw "github.com/hashicorp/terraform-provider-aws/internal/sweep/framework"
@@ -49,6 +46,24 @@ const (
 
 type resourceTenant struct {
 	framework.ResourceWithModel[resourceTenantModel]
+	client *sesv2.Client
+}
+
+func (r *resourceTenant) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+
+	client, ok := req.ProviderData.(*conns.AWSClient)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Provider Data Type",
+			fmt.Sprintf("Expected *conns.AWSClient, got: %T", req.ProviderData),
+		)
+		return
+	}
+
+	r.client = client.SESV2Client(ctx)
 }
 
 func (r *resourceTenant) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -90,7 +105,7 @@ var tenantFlattenIgnoredFields = []string{
 }
 
 func (r *resourceTenant) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	conn := r.Meta().SESV2Client(ctx)
+	conn := r.client
 
 	var plan resourceTenantModel
 
@@ -127,7 +142,7 @@ func (r *resourceTenant) Create(ctx context.Context, req resource.CreateRequest,
 }
 
 func (r *resourceTenant) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	conn := r.Meta().SESV2Client(ctx)
+	conn := r.client
 
 	var state resourceTenantModel
 	smerr.AddEnrich(ctx, &resp.Diagnostics, req.State.Get(ctx, &state))
@@ -168,7 +183,7 @@ func (r *resourceTenant) Read(ctx context.Context, req resource.ReadRequest, res
 }
 
 func (r *resourceTenant) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	conn := r.Meta().SESV2Client(ctx)
+	conn := r.client
 
 	var state resourceTenantModel
 	smerr.EnrichAppend(ctx, &resp.Diagnostics, req.State.Get(ctx, &state))
