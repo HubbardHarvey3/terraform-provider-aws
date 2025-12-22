@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/terraform-provider-aws/internal/conns"
 	"github.com/hashicorp/terraform-provider-aws/internal/create"
 	tfsesv2 "github.com/hashicorp/terraform-provider-aws/internal/service/sesv2"
-	"github.com/hashicorp/terraform-provider-aws/internal/tfresource"
+	"github.com/hashicorp/terraform-provider-aws/internal/retry"
 	"github.com/hashicorp/terraform-provider-aws/names"
 )
 
@@ -46,7 +46,7 @@ func TestAccSESV2Tenant_basic(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					testAccCheckTenantExists(ctx, resourceName),
 					resource.TestCheckResourceAttr(resourceName, "tenant_name", rName1),
-					resource.TestCheckResourceAttrSet(resourceName, "id"),
+					resource.TestCheckResourceAttrSet(resourceName, names.AttrID),
 					func(s *terraform.State) error {
 						rs := s.RootModule().Resources[resourceName]
 						tenantID = rs.Primary.ID
@@ -59,7 +59,7 @@ func TestAccSESV2Tenant_basic(t *testing.T) {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					testAccCheckTenantExists(ctx, resourceName),
 					resource.TestCheckResourceAttr(resourceName, "tenant_name", rName2),
-					resource.TestCheckResourceAttrSet(resourceName, "id"),
+					resource.TestCheckResourceAttrSet(resourceName, names.AttrID),
 					testAccCheckTenantRecreated(resourceName, &tenantID),
 					testAccCheckTenantDoesNotExist(ctx, rName1),
 				),
@@ -85,7 +85,7 @@ func testAccCheckTenantDestroy(ctx context.Context) resource.TestCheckFunc {
 			tenantName := rs.Primary.Attributes["tenant_name"]
 			_, err := tfsesv2.FindTenantByName(ctx, conn, tenantName)
 
-			if tfresource.NotFound(err) {
+			if retry.NotFound(err) {
 				return nil
 			}
 			if err != nil {
@@ -158,7 +158,7 @@ func testAccCheckTenantDoesNotExist(ctx context.Context, tenantName string) reso
 		conn := acctest.Provider.Meta().(*conns.AWSClient).SESV2Client(ctx)
 
 		_, err := tfsesv2.FindTenantByName(ctx, conn, tenantName)
-		if tfresource.NotFound(err) {
+		if retry.NotFound(err) {
 			return nil
 		}
 		if err != nil {
